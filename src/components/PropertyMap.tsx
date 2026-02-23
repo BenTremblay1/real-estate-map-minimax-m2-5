@@ -3,15 +3,17 @@ import { useEffect, useRef, useCallback } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
-import { properties, Property, getPriceColor, getHeatmapIntensity } from '../data/properties';
+import { properties, Property } from '../data/properties';
+import { getMetricByKey, getMetricStats, getMetricColor, getMetricIntensity } from '../data/metrics';
 
 interface PropertyMapProps {
   onVisiblePropertiesChange: (visibleProperties: Property[]) => void;
   showHeatmap: boolean;
   showMarkers: boolean;
+  selectedMetric: string;
 }
 
-export default function PropertyMap({ onVisiblePropertiesChange, showHeatmap, showMarkers }: PropertyMapProps) {
+export default function PropertyMap({ onVisiblePropertiesChange, showHeatmap, showMarkers, selectedMetric }: PropertyMapProps) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const heatLayerRef = useRef(null);
@@ -38,11 +40,15 @@ export default function PropertyMap({ onVisiblePropertiesChange, showHeatmap, sh
 
     if (!showHeatmap) return;
 
-    // Create heatmap data with intensity based on price
+    const metric = getMetricByKey(selectedMetric);
+    const stats = getMetricStats(properties, selectedMetric);
+    const colorScheme = metric?.colorScheme || 'ascending';
+
+    // Create heatmap data with intensity based on selected metric
     const heatData = properties.map(p => [
       p.latitude,
       p.longitude,
-      getHeatmapIntensity(p.pricePerUnit)
+      getMetricIntensity(p[selectedMetric], stats.min, stats.max, colorScheme)
     ]);
 
     // Create heat layer with custom gradient
@@ -52,16 +58,16 @@ export default function PropertyMap({ onVisiblePropertiesChange, showHeatmap, sh
       maxZoom: 17,
       max: 1.0,
       gradient: {
-        0.0: '#22c55e',  // green - low price
+        0.0: '#22c55e',  // green - low value
         0.3: '#84cc16',  // lime
-        0.5: '#eab308',  // yellow - medium price
+        0.5: '#eab308',  // yellow - medium value
         0.7: '#f97316',  // orange
-        1.0: '#ef4444'   // red - high price
+        1.0: '#ef4444'   // red - high value
       }
     });
 
     heatLayerRef.current.addTo(mapRef.current);
-  }, [showHeatmap]);
+  }, [showHeatmap, selectedMetric]);
 
   const updateMarkers = useCallback(() => {
     if (!mapRef.current) return;
@@ -75,9 +81,14 @@ export default function PropertyMap({ onVisiblePropertiesChange, showHeatmap, sh
 
     if (!showMarkers) return;
 
+    const metric = getMetricByKey(selectedMetric);
+    const stats = getMetricStats(properties, selectedMetric);
+    const colorScheme = metric?.colorScheme || 'ascending';
+
     // Add markers for each property
     properties.forEach(p => {
-      const color = getPriceColor(p.pricePerUnit);
+      const value = p[selectedMetric];
+      const color = getMetricColor(value, stats.min, stats.max, colorScheme);
 
       const icon = L.divIcon({
         className: 'custom-marker',
@@ -96,20 +107,23 @@ export default function PropertyMap({ onVisiblePropertiesChange, showHeatmap, sh
       const marker = L.marker([p.latitude, p.longitude], { icon });
 
       marker.bindPopup(`
-        <div style="min-width: 200px;">
+        <div style="min-width: 220px;">
           <h3 style="margin: 0 0 8px 0; font-weight: bold; color: #1f2937;">Property #${p.id}</h3>
           <div style="display: grid; gap: 4px; font-size: 13px;">
-            <div><strong>Price/Unit:</strong> <span style="color: ${color}; font-weight: bold;">$${p.pricePerUnit.toFixed(1)}</span></div>
-            <div><strong>House Age:</strong> ${p.houseAge} years</div>
-            <div><strong>Distance to MRT:</strong> ${p.distanceToMRT.toFixed(0)}m</div>
-            <div><strong>Convenience Stores:</strong> ${p.convenienceStores}</div>
+            <div><strong>Price/Unit:</strong> <span style="color: ${selectedMetric === 'pricePerUnit' ? color : '#374151'}; font-weight: ${selectedMetric === 'pricePerUnit' ? 'bold' : 'normal'};">$${p.pricePerUnit.toFixed(1)}</span></div>
+            <div><strong>Lot Size:</strong> <span style="color: ${selectedMetric === 'lotSize' ? color : '#374151'}; font-weight: ${selectedMetric === 'lotSize' ? 'bold' : 'normal'};">${p.lotSize.toLocaleString()} sq ft</span></div>
+            <div><strong>Living Area:</strong> <span style="color: ${selectedMetric === 'sqft' ? color : '#374151'}; font-weight: ${selectedMetric === 'sqft' ? 'bold' : 'normal'};">${p.sqft.toLocaleString()} sq ft</span></div>
+            <div><strong>Year Built:</strong> <span style="color: ${selectedMetric === 'yearBuilt' ? color : '#374151'}; font-weight: ${selectedMetric === 'yearBuilt' ? 'bold' : 'normal'};">${p.yearBuilt}</span></div>
+            <div><strong>Bedrooms:</strong> ${p.bedrooms} | <strong>Baths:</strong> ${p.bathrooms}</div>
+            <div><strong>House Age:</strong> <span style="color: ${selectedMetric === 'houseAge' ? color : '#374151'}; font-weight: ${selectedMetric === 'houseAge' ? 'bold' : 'normal'};">${p.houseAge} years</span></div>
+            <div><strong>Distance to MRT:</strong> <span style="color: ${selectedMetric === 'distanceToMRT' ? color : '#374151'}; font-weight: ${selectedMetric === 'distanceToMRT' ? 'bold' : 'normal'};">${p.distanceToMRT.toFixed(0)}m</span></div>
           </div>
         </div>
       `);
 
       markersLayerRef.current?.addLayer(marker);
     });
-  }, [showMarkers]);
+  }, [showMarkers, selectedMetric]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -154,11 +168,11 @@ export default function PropertyMap({ onVisiblePropertiesChange, showHeatmap, sh
 
   useEffect(() => {
     updateHeatmap();
-  }, [showHeatmap, updateHeatmap]);
+  }, [showHeatmap, selectedMetric, updateHeatmap]);
 
   useEffect(() => {
     updateMarkers();
-  }, [showMarkers, updateMarkers]);
+  }, [showMarkers, selectedMetric, updateMarkers]);
 
   return (
     <div
