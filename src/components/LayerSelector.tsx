@@ -37,7 +37,7 @@ export default function LayerSelector({ selectedMetric, onMetricChange }: LayerS
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] overflow-hidden">
+        <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-[9999] overflow-hidden">
           <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
             <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Map Layers</h3>
           </div>
