@@ -36,3 +36,40 @@ img {
 .fixed {
   position: fixed;
 }
+
+/* Custom slider styles */
+input[type="range"].slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="range"].slider-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #10b981;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  margin-top: -3px;
+}
+
+input[type="range"].slider-thumb::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #10b981;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+input[type="range"].slider-thumb:hover::-webkit-slider-thumb {
+  background: #059669;
+}
+
+input[type="range"].slider-thumb:hover::-moz-range-thumb {
+  background: #059669;
+}

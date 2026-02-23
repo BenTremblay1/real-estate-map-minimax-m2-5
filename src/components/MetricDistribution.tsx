@@ -2,20 +2,30 @@
 import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Property } from '../data/properties';
-import { getMetricByKey, getMetricStats, MetricConfig } from '../data/metrics';
+import { HistoricalProperty } from '../data/historicalData';
+import { getMetricByKey, MetricConfig } from '../data/metrics';
 
 interface MetricDistributionProps {
-  visibleProperties: Property[];
+  visibleProperties: (Property | HistoricalProperty)[];
   selectedMetric: string;
+  selectedQuarter?: string;
 }
 
-export default function MetricDistribution({ visibleProperties, selectedMetric }: MetricDistributionProps) {
+export default function MetricDistribution({ visibleProperties, selectedMetric, selectedQuarter }: MetricDistributionProps) {
   const metric = getMetricByKey(selectedMetric);
+
+  // Get effective value for a property (use adjustedPricePerUnit when available)
+  const getPropertyValue = (p: Property | HistoricalProperty) => {
+    if (selectedMetric === 'pricePerUnit' && 'adjustedPricePerUnit' in p) {
+      return p.adjustedPricePerUnit;
+    }
+    return p[selectedMetric] as number;
+  };
 
   const chartData = useMemo(() => {
     if (visibleProperties.length === 0 || !metric) return [];
 
-    const values = visibleProperties.map(p => p[selectedMetric] as number);
+    const values = visibleProperties.map(p => getPropertyValue(p));
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
 
@@ -27,12 +37,10 @@ export default function MetricDistribution({ visibleProperties, selectedMetric }
     for (let i = 0; i < binCount; i++) {
       const binMin = minValue + i * binSize;
       const binMax = minValue + (i + 1) * binSize;
-      const count = visibleProperties.filter(
-        p => {
-          const val = p[selectedMetric] as number;
-          return val >= binMin && val < binMax;
-        }
-      ).length;
+      const count = visibleProperties.filter(p => {
+        const val = getPropertyValue(p);
+        return val >= binMin && val < binMax;
+      }).length;
 
       // Get color based on normalized position
       let normalized = i / (binCount - 1);
@@ -51,8 +59,16 @@ export default function MetricDistribution({ visibleProperties, selectedMetric }
         color = '#ef4444'; // red
       }
 
+      // Format bin label based on metric type
+      let label;
+      if (selectedMetric === 'pricePerUnit') {
+        label = `$${binMin.toFixed(0)}`;
+      } else {
+        label = metric.format(binMin);
+      }
+
       bins.push({
-        range: metric.format(binMin),
+        range: label,
         count,
         binMin,
         binMax,
@@ -68,7 +84,7 @@ export default function MetricDistribution({ visibleProperties, selectedMetric }
       return { min: 0, max: 0, avg: 0, median: 0 };
     }
 
-    const values = visibleProperties.map(p => p[selectedMetric] as number).sort((a, b) => a - b);
+    const values = visibleProperties.map(p => getPropertyValue(p)).sort((a, b) => a - b);
     const min = values[0];
     const max = values[values.length - 1];
     const avg = values.reduce((sum, p) => sum + p, 0) / values.length;
@@ -81,11 +97,21 @@ export default function MetricDistribution({ visibleProperties, selectedMetric }
 
   const isDescending = metric?.colorScheme === 'descending';
 
+  // Format value for display
+  const formatValue = (value: number) => {
+    if (selectedMetric === 'pricePerUnit') {
+      return `$${value.toFixed(1)}`;
+    }
+    return metric?.format(value) || value.toFixed(1);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold text-gray-800">{metric?.label || 'Distribution'}</h2>
-        <span className="text-sm text-gray-500">{visibleProperties.length} properties</span>
+        <h2 className="text-sm font-semibold text-gray-800">
+          {selectedMetric === 'pricePerUnit' ? 'Price Distribution' : (metric?.label || 'Distribution')}
+        </h2>
+        <span className="text-xs text-gray-500">{visibleProperties.length} properties</span>
       </div>
 
       {/* Legend */}
@@ -105,17 +131,17 @@ export default function MetricDistribution({ visibleProperties, selectedMetric }
       </div>
 
       {/* Chart */}
-      <div className="flex-1 min-h-[200px]">
+      <div className="flex-1 min-h-[180px]">
         {visibleProperties.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
               <XAxis
                 dataKey="range"
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 9 }}
                 interval={1}
                 angle={-45}
                 textAnchor="end"
-                height={50}
+                height={45}
               />
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip
@@ -124,7 +150,7 @@ export default function MetricDistribution({ visibleProperties, selectedMetric }
                     const data = payload[0].payload;
                     return (
                       <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-2 text-sm">
-                        <p className="font-semibold">{metric?.format(data.binMin)} - {metric?.format(data.binMax)}</p>
+                        <p className="font-semibold">{formatValue(data.binMin)} - {formatValue(data.binMax)}</p>
                         <p className="text-gray-600">{data.count} properties</p>
                       </div>
                     );
@@ -150,26 +176,26 @@ export default function MetricDistribution({ visibleProperties, selectedMetric }
       <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-gray-100">
         <div className="text-center">
           <div className="text-xs text-gray-500">Min</div>
-          <div className={`font-semibold ${isDescending ? 'text-red-600' : 'text-green-600'}`}>
-            {metric?.format(stats.min) || stats.min.toFixed(1)}
+          <div className={`font-semibold text-sm ${isDescending ? 'text-red-600' : 'text-green-600'}`}>
+            {formatValue(stats.min)}
           </div>
         </div>
         <div className="text-center">
           <div className="text-xs text-gray-500">Avg</div>
-          <div className="font-semibold text-gray-800">
-            {metric?.format(stats.avg) || stats.avg.toFixed(1)}
+          <div className="font-semibold text-sm text-gray-800">
+            {formatValue(stats.avg)}
           </div>
         </div>
         <div className="text-center">
           <div className="text-xs text-gray-500">Median</div>
-          <div className="font-semibold text-gray-800">
-            {metric?.format(stats.median) || stats.median.toFixed(1)}
+          <div className="font-semibold text-sm text-gray-800">
+            {formatValue(stats.median)}
           </div>
         </div>
         <div className="text-center">
           <div className="text-xs text-gray-500">Max</div>
-          <div className={`font-semibold ${isDescending ? 'text-green-600' : 'text-red-600'}`}>
-            {metric?.format(stats.max) || stats.max.toFixed(1)}
+          <div className={`font-semibold text-sm ${isDescending ? 'text-green-600' : 'text-red-600'}`}>
+            {formatValue(stats.max)}
           </div>
         </div>
       </div>

@@ -1,23 +1,45 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import PropertyMap from './components/PropertyMap';
 import MetricDistribution from './components/MetricDistribution';
 import LayerSelector from './components/LayerSelector';
+import TimeSlider from './components/TimeSlider';
+import EconomicIndicatorsPanel from './components/EconomicIndicatorsPanel';
 import { Property, properties } from './data/properties';
+import { getPropertiesForQuarter, HistoricalProperty } from './data/historicalData';
 import { getMetricByKey, getMetricStats } from './data/metrics';
 import { Map, Eye, EyeOff, TrendingUp } from 'lucide-react';
 
 function App() {
-  const [visibleProperties, setVisibleProperties] = useState<Property[]>(properties);
+  const [visibleProperties, setVisibleProperties] = useState<(Property | HistoricalProperty)[]>(properties);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showMarkers, setShowMarkers] = useState(true);
   const [selectedMetric, setSelectedMetric] = useState('pricePerUnit');
+  const [selectedQuarter, setSelectedQuarter] = useState('2026-Q1');
 
-  const handleVisiblePropertiesChange = useCallback((props: Property[]) => {
+  // Get properties adjusted for the selected quarter
+  const quarterProperties = useMemo(() => {
+    return getPropertiesForQuarter(selectedQuarter);
+  }, [selectedQuarter]);
+
+  const handleVisiblePropertiesChange = useCallback((props: (Property | HistoricalProperty)[]) => {
     setVisibleProperties(props);
   }, []);
 
   const currentMetric = getMetricByKey(selectedMetric);
-  const metricStats = getMetricStats(properties, selectedMetric);
+
+  // Use adjusted price for the metric calculation when pricePerUnit is selected
+  const effectiveMetricKey = selectedMetric === 'pricePerUnit' ? 'adjustedPricePerUnit' : selectedMetric;
+  const metricStats = useMemo(() => {
+    if (selectedMetric === 'pricePerUnit') {
+      const values = quarterProperties.map(p => p.adjustedPricePerUnit);
+      return {
+        min: Math.min(...values),
+        max: Math.max(...values),
+        avg: values.reduce((a, b) => a + b, 0) / values.length,
+      };
+    }
+    return getMetricStats(quarterProperties, selectedMetric);
+  }, [quarterProperties, selectedMetric]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
@@ -28,8 +50,8 @@ function App() {
             <Map className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Real Estate Price Map</h1>
-            <p className="text-xs text-gray-500">Taiwan Property Transactions</p>
+            <h1 className="text-xl font-bold text-gray-900">Real Estate Analytics</h1>
+            <p className="text-xs text-gray-500">Taiwan Property Market Dashboard</p>
           </div>
         </div>
 
@@ -73,21 +95,29 @@ function App() {
           <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
             <TrendingUp className="w-4 h-4 text-gray-500" />
             <span className="text-sm text-gray-700">
-              <span className="font-semibold">{properties.length}</span> total properties
+              <span className="font-semibold">{quarterProperties.length}</span> properties
             </span>
           </div>
         </div>
       </header>
 
+      {/* Time Slider */}
+      <TimeSlider
+        selectedQuarter={selectedQuarter}
+        onQuarterChange={setSelectedQuarter}
+      />
+
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden">
         {/* Map Container */}
         <div className="flex-1 relative">
           <PropertyMap
+            properties={quarterProperties}
             onVisiblePropertiesChange={handleVisiblePropertiesChange}
             showHeatmap={showHeatmap}
             showMarkers={showMarkers}
             selectedMetric={selectedMetric}
+            selectedQuarter={selectedQuarter}
           />
 
           {/* Map Overlay - Metric Range Indicator */}
@@ -96,65 +126,48 @@ function App() {
               {currentMetric?.label} {currentMetric?.colorScheme === 'descending' ? '(lower is better)' : ''}
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">{currentMetric?.format(metricStats.min)}</span>
+              <span className="text-xs text-gray-500">
+                {selectedMetric === 'pricePerUnit'
+                  ? `$${metricStats.min.toFixed(0)}`
+                  : currentMetric?.format(metricStats.min)}
+              </span>
               <div className="w-32 h-3 rounded-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500"></div>
-              <span className="text-xs text-gray-500">{currentMetric?.format(metricStats.max)}</span>
+              <span className="text-xs text-gray-500">
+                {selectedMetric === 'pricePerUnit'
+                  ? `$${metricStats.max.toFixed(0)}`
+                  : currentMetric?.format(metricStats.max)}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Sidebar */}
-        <div className="w-80 p-4 flex flex-col gap-4 overflow-y-auto">
+        <div className="w-80 p-4 flex flex-col gap-4 overflow-y-auto bg-gray-50">
+          {/* Economic Indicators */}
+          <EconomicIndicatorsPanel selectedQuarter={selectedQuarter} />
+
           {/* Distribution Chart */}
-          <MetricDistribution visibleProperties={visibleProperties} selectedMetric={selectedMetric} />
+          <MetricDistribution
+            visibleProperties={visibleProperties}
+            selectedMetric={selectedMetric}
+            selectedQuarter={selectedQuarter}
+          />
 
           {/* Info Panel */}
           <div className="bg-white rounded-lg shadow-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">About This Map</h3>
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Data Sources</h3>
             <div className="text-xs text-gray-600 space-y-2">
-              <p>
-                This interactive map displays <strong>414 property transactions</strong> from Taiwan's real estate market.
-              </p>
-              <p>
-                <strong>Layers:</strong> Use the layers dropdown to visualize different property metrics on the map.
-              </p>
-              <p>
-                <strong>Heatmap:</strong> Areas with warmer colors (red) indicate higher values, while cooler colors (green) indicate lower values.
-              </p>
-              <p>
-                <strong>Dynamic Updates:</strong> The distribution chart updates automatically as you pan and zoom the map.
-              </p>
+              <p><strong>Property Data:</strong> Taiwan real estate transactions (414 properties)</p>
+              <p><strong>Economic Data:</strong> FRED (Federal Reserve Economic Data)</p>
+              <p><strong>Time Range:</strong> Q1 2020 - Q1 2026</p>
             </div>
-          </div>
-
-          {/* Dataset Info */}
-          <div className="bg-white rounded-lg shadow-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Available Metrics</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div className="flex justify-between">
-                <span>Price per Unit</span>
-                <span className="text-gray-400">$/unit area</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Lot Size</span>
-                <span className="text-gray-400">sq ft</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Living Area</span>
-                <span className="text-gray-400">sq ft</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Year Built</span>
-                <span className="text-gray-400">year</span>
-              </div>
-              <div className="flex justify-between">
-                <span>House Age</span>
-                <span className="text-gray-400">years</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Distance to MRT</span>
-                <span className="text-gray-400">meters</span>
-              </div>
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <h4 className="text-xs font-semibold text-gray-700 mb-2">Coming Soon</h4>
+              <ul className="text-xs text-gray-500 space-y-1">
+                <li>• CoStar vacancy rates</li>
+                <li>• Walk Score integration</li>
+                <li>• School ratings overlay</li>
+              </ul>
             </div>
           </div>
         </div>
