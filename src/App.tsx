@@ -1,15 +1,18 @@
 import { useState, useCallback, useMemo } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import PropertyMap from './components/PropertyMap';
 import MetricDistribution from './components/MetricDistribution';
 import LayerSelector from './components/LayerSelector';
 import TimeSlider from './components/TimeSlider';
 import EconomicIndicatorsPanel from './components/EconomicIndicatorsPanel';
+import Navigation from './components/Navigation';
+import InvestmentDashboard from './components/InvestmentDashboard';
 import { Property, properties } from './data/properties';
 import { getPropertiesForQuarter, HistoricalProperty } from './data/historicalData';
 import { getMetricByKey, getMetricStats } from './data/metrics';
 import { Map, Eye, EyeOff, TrendingUp } from 'lucide-react';
 
-function App() {
+function PropertyAnalytics() {
   const [visibleProperties, setVisibleProperties] = useState<(Property | HistoricalProperty)[]>(properties);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showMarkers, setShowMarkers] = useState(true);
@@ -171,6 +174,21 @@ function App() {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <div className="h-screen flex flex-col">
+      <Navigation />
+      <div className="flex-1 overflow-hidden">
+        <Routes>
+          <Route path="/" element={<PropertyAnalytics />} />
+          <Route path="/investment" element={<InvestmentDashboard />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
     </div>
   );

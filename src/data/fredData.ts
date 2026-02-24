@@ -96,7 +96,7 @@ export function getYoYChange(quarter: string, metric: keyof EconomicData): numbe
 
 // FRED API Integration (uncomment when you have an API key)
 /*
-const FRED_API_KEY = 'YOUR_API_KEY_HERE';
+const FRED_API_KEY = '95ae021fec6bdf838617cd0ff28b0e3c';
 const FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
 
 export async function fetchFredSeries(seriesId: string, startDate: string, endDate: string): Promise<any[]> {
