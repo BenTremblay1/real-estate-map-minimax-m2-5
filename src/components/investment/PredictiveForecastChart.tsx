@@ -15,6 +15,18 @@ import { generateForecast } from '../../data/investmentAnalytics';
 export default function PredictiveForecastChart() {
   const forecastData = useMemo(() => generateForecast(8), []);
 
+  // Handle empty data case
+  if (!forecastData || forecastData.length === 0) {
+    return (
+      <div className="bg-slate-900 rounded-xl p-5 border border-slate-800">
+        <h3 className="text-lg font-semibold text-white mb-4">Price Forecast</h3>
+        <div className="h-72 flex items-center justify-center text-slate-500">
+          Loading forecast data...
+        </div>
+      </div>
+    );
+  }
+
   const formatYAxis = (value: number) => {
     return `$${(value / 1000).toFixed(0)}k`;
   };

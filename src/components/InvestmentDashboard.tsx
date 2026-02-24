@@ -1,13 +1,17 @@
 // @ts-nocheck
 import { useState } from 'react';
-import KPICards from './investment/KPICards';
-import MarketCycleGauge from './investment/MarketCycleGauge';
-import PredictiveForecastChart from './investment/PredictiveForecastChart';
-import DealScoringTable from './investment/DealScoringTable';
-import CorrelationMatrix from './investment/CorrelationMatrix';
-import StressTestPanel from './investment/StressTestPanel';
-import { TrendingUp, Calendar } from 'lucide-react';
+import { TrendingUp, Calendar, Activity, AlertTriangle, DollarSign, BarChart3 } from 'lucide-react';
 import { quarters } from '../data/constants';
+
+// Simple static KPI data
+const kpiData = {
+  cyclePhase: 'Expansion',
+  confidence: 80,
+  avgScore: 67,
+  projectedGrowth: 8.5,
+  riskLevel: 'Medium',
+  highValueAssets: 142,
+};
 
 export default function InvestmentDashboard() {
   const [selectedQuarter, setSelectedQuarter] = useState('2026-Q1');
@@ -47,31 +51,83 @@ export default function InvestmentDashboard() {
 
       {/* Main Content */}
       <div className="p-6">
-        {/* KPI Cards */}
-        <div className="mb-6">
-          <KPICards selectedQuarter={selectedQuarter} />
+        {/* KPI Cards - Simple Version */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Market Cycle */}
+          <div className="bg-slate-900 rounded-xl p-5 border border-slate-800">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
+                <Activity className="w-5 h-5" />
+              </div>
+              <span className="text-slate-400 text-sm">Market Cycle</span>
+            </div>
+            <div className="text-2xl font-bold text-emerald-400">
+              {kpiData.cyclePhase}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              {kpiData.confidence}% confidence
+            </div>
+          </div>
+
+          {/* Average Score */}
+          <div className="bg-slate-900 rounded-xl p-5 border border-slate-800">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
+                <BarChart3 className="w-5 h-5" />
+              </div>
+              <span className="text-slate-400 text-sm">Avg. Score</span>
+            </div>
+            <div className="text-2xl font-bold text-white">
+              {kpiData.avgScore}/100
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              {kpiData.highValueAssets} high-value assets
+            </div>
+          </div>
+
+          {/* Projected Growth */}
+          <div className="bg-slate-900 rounded-xl p-5 border border-slate-800">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <span className="text-slate-400 text-sm">Projected Growth</span>
+            </div>
+            <div className="text-2xl font-bold text-emerald-400">
+              +{kpiData.projectedGrowth}%
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              8-quarter forecast
+            </div>
+          </div>
+
+          {/* Portfolio Risk */}
+          <div className="bg-slate-900 rounded-xl p-5 border border-slate-800">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <span className="text-slate-400 text-sm">Portfolio Risk</span>
+            </div>
+            <div className="text-2xl font-bold text-amber-400">
+              {kpiData.riskLevel}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              Based on scoring analysis
+            </div>
+          </div>
         </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Row 2: Forecast (8 cols) + Deal Scoring (4 cols) */}
-          <div className="lg:col-span-8">
-            <PredictiveForecastChart />
+        {/* Coming Soon Message */}
+        <div className="bg-slate-900 rounded-xl p-12 border border-slate-800 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-500/20 rounded-full mb-4">
+            <TrendingUp className="w-8 h-8 text-indigo-400" />
           </div>
-          <div className="lg:col-span-4">
-            <DealScoringTable selectedQuarter={selectedQuarter} />
-          </div>
-
-          {/* Row 3: Market Cycle (4 cols) + Correlation (4 cols) + Stress Test (4 cols) */}
-          <div className="lg:col-span-4">
-            <MarketCycleGauge selectedQuarter={selectedQuarter} />
-          </div>
-          <div className="lg:col-span-4">
-            <CorrelationMatrix />
-          </div>
-          <div className="lg:col-span-4">
-            <StressTestPanel />
-          </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Advanced Analytics Coming Soon</h2>
+          <p className="text-slate-400 max-w-md mx-auto">
+            We're working on bringing you predictive forecasting, deal scoring,
+            correlation analysis, and stress testing. Check back soon!
+          </p>
         </div>
 
         {/* Footer Info */}
@@ -84,7 +140,7 @@ export default function InvestmentDashboard() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span>Live Analysis</span>
+              <span>Ready</span>
             </div>
           </div>
         </div>

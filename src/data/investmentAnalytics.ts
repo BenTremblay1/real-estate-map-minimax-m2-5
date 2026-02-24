@@ -102,62 +102,83 @@ export function getAllPropertyScores(quarter: string = '2026-Q1'): PropertyScore
 
 // Generate predictive forecast
 export function generateForecast(quartersAhead: number = 8): ForecastData[] {
-  const historicalQuarters = quarters.slice(0, quarters.indexOf('2026-Q1') + 1);
-  const forecastQuarters = quarters.slice(quarters.indexOf('2026-Q1') + 1, quarters.indexOf('2026-Q1') + 1 + quartersAhead);
+  try {
+    const idx = quarters.indexOf('2026-Q1');
+    if (idx === -1) {
+      // Fallback if 2026-Q1 not found
+      return [];
+    }
 
-  const result: ForecastData[] = [];
+    const historicalQuarters = quarters.slice(0, idx + 1);
+    const forecastQuarters = quarters.slice(idx + 1, idx + 1 + quartersAhead);
 
-  // Historical data points
-  historicalQuarters.forEach(quarter => {
-    const props = getPropertiesForQuarter(quarter);
-    const avgPrice = props.reduce((sum, p) => sum + p.adjustedPricePerUnit, 0) / props.length;
-    result.push({
-      quarter,
-      predictedPrice: avgPrice,
-      lowerBound: avgPrice,
-      upperBound: avgPrice,
-      isForecast: false,
+    const result: ForecastData[] = [];
+
+    // Historical data points
+    historicalQuarters.forEach(quarter => {
+      const props = getPropertiesForQuarter(quarter);
+      if (!props || props.length === 0) return;
+      const avgPrice = props.reduce((sum, p) => sum + p.adjustedPricePerUnit, 0) / props.length;
+      result.push({
+        quarter,
+        predictedPrice: avgPrice,
+        lowerBound: avgPrice,
+        upperBound: avgPrice,
+        isForecast: false,
+      });
     });
-  });
 
-  // Calculate trend from historical data
-  const historicalPrices = result.map(r => r.predictedPrice);
-  const n = historicalPrices.length;
-  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-  for (let i = 0; i < n; i++) {
-    sumX += i;
-    sumY += historicalPrices[i];
-    sumXY += i * historicalPrices[i];
-    sumX2 += i * i;
+    // Calculate trend from historical data
+    const historicalPrices = result.map(r => r.predictedPrice);
+    const n = historicalPrices.length;
+
+    if (n === 0) {
+      return [];
+    }
+
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    for (let i = 0; i < n; i++) {
+      sumX += i;
+      sumY += historicalPrices[i];
+      sumXY += i * historicalPrices[i];
+      sumX2 += i * i;
+    }
+
+    const denominator = (n * sumX2 - sumX * sumX);
+    if (denominator === 0) {
+      return result;
+    }
+
+    const slope = (n * sumXY - sumX * sumY) / denominator;
+    const intercept = (sumY - slope * sumX) / n;
+
+    // Generate forecast with confidence intervals
+    const lastHistoricalPrice = historicalPrices[n - 1];
+    const stdDev = Math.sqrt(
+      historicalPrices.reduce((sum, p) => sum + Math.pow(p - (slope * historicalPrices.indexOf(p) + intercept), 2), 0) / n
+    );
+
+    forecastQuarters.forEach((quarter, index) => {
+      const growthRate = 1 + (index * 0.005); // Diminishing growth
+      const predictedPrice = lastHistoricalPrice * growthRate;
+
+      // Expand confidence interval over time
+      const uncertainty = stdDev * (1 + index * 0.3);
+
+      result.push({
+        quarter,
+        predictedPrice: Math.round(predictedPrice),
+        lowerBound: Math.round(predictedPrice - uncertainty * 1.96),
+        upperBound: Math.round(predictedPrice + uncertainty * 1.96),
+        isForecast: true,
+      });
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error generating forecast:', error);
+    return [];
   }
-  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-  const intercept = (sumY - slope * sumX) / n;
-
-  // Generate forecast with confidence intervals
-  const lastHistoricalPrice = historicalPrices[n - 1];
-  const stdDev = Math.sqrt(
-    historicalPrices.reduce((sum, p) => sum + Math.pow(p - (slope * historicalPrices.indexOf(p) + intercept), 2), 0) / n
-  );
-
-  forecastQuarters.forEach((quarter, index) => {
-    const forecastIndex = n + index;
-    const basePrediction = slope * forecastIndex + intercept;
-    const growthRate = 1 + (index * 0.005); // Diminishing growth
-    const predictedPrice = lastHistoricalPrice * growthRate;
-
-    // Expand confidence interval over time
-    const uncertainty = stdDev * (1 + index * 0.3);
-
-    result.push({
-      quarter,
-      predictedPrice: Math.round(predictedPrice),
-      lowerBound: Math.round(predictedPrice - uncertainty * 1.96),
-      upperBound: Math.round(predictedPrice + uncertainty * 1.96),
-      isForecast: true,
-    });
-  });
-
-  return result;
 }
 
 // Calculate correlations between property prices and economic indicators
