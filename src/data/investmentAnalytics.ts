@@ -4,7 +4,7 @@
 import { Property, properties } from './properties';
 import { getPropertiesForQuarter, HistoricalProperty } from './historicalData';
 import { economicDataByQuarter, EconomicData } from './fredData';
-import { quarters } from '../components/TimeSlider';
+import { quarters } from './constants';
 
 // Types
 export interface PropertyScore {

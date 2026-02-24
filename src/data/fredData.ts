@@ -2,7 +2,7 @@
 // API Documentation: https://fred.stlouisfed.org/docs/api/fred/
 // Get your free API key at: https://fred.stlouisfed.org/docs/api/api_key.html
 
-import { quarters } from '../components/TimeSlider';
+import { quarters } from './constants';
 
 export interface EconomicData {
   quarter: string;

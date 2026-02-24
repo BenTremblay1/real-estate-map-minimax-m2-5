@@ -3,7 +3,7 @@
 
 import { Property, properties } from './properties';
 import { economicDataByQuarter } from './fredData';
-import { quarters } from '../components/TimeSlider';
+import { quarters } from './constants';
 
 export interface HistoricalProperty extends Property {
   quarter: string;
